@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+pydantic
+pydantic-settings
+SQLAlchemy
+slowapi
+python-dotenv
+pytest
+httpx
+black
+ruff
+mypy
