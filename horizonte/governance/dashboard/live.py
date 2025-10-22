@@ -29,6 +29,7 @@ POLL_INTERVAL = 5
 NETWORK_POLL_INTERVAL = 10
 COGNITION_POLL_INTERVAL = 5
 COGNITION_TEMPLATE = Path(__file__).parent / "cognition.html"
+AUDIT_TEMPLATE = Path(__file__).parent / "audit.html"
 
 
 def _network_payload() -> dict[str, object]:
@@ -70,6 +71,13 @@ async def cognition_page() -> HTMLResponse:
     """Entrega el dashboard cognitivo basado en metacognición."""
 
     return HTMLResponse(COGNITION_TEMPLATE.read_text(encoding="utf-8"))
+
+
+@router.get("/audit", response_class=HTMLResponse)
+async def audit_page() -> HTMLResponse:
+    """Entrega el panel de auditoría y transparencia final."""
+
+    return HTMLResponse(AUDIT_TEMPLATE.read_text(encoding="utf-8"))
 
 
 @router.websocket("/ws/metrics")

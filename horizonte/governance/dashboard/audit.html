@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Horizonte — Panel de Auditoría Final</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-slate-950 text-slate-100 min-h-screen">
+    <main class="max-w-5xl mx-auto py-10 px-4 space-y-8">
+      <header class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 class="text-3xl font-semibold">Auditoría y Supervisión</h1>
+          <p class="text-slate-300 max-w-2xl">
+            Consolida la trazabilidad completa de AUREUS, permitiendo verificar métricas éticas,
+            cognitivas y de red junto con las últimas autoevaluaciones y consensos distribuidos.
+          </p>
+        </div>
+        <div class="flex gap-3">
+          <button
+            id="generate-report"
+            class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold px-4 py-2 rounded"
+          >
+            Generar Informe
+          </button>
+          <a
+            id="download-report"
+            href="/audit/report"
+            class="border border-emerald-500 text-emerald-300 hover:text-emerald-200 hover:border-emerald-300 px-4 py-2 rounded"
+            download
+          >
+            Descargar JSON firmado
+          </a>
+        </div>
+      </header>
+
+      <section class="grid gap-4 md:grid-cols-3" id="security-summary">
+        <article class="bg-slate-900 rounded-lg p-4 shadow">
+          <h2 class="text-sm uppercase tracking-wide text-slate-400">Último chequeo</h2>
+          <p class="text-lg font-semibold mt-2" id="security-timestamp">—</p>
+          <p class="text-sm text-slate-400">Marca temporal del último análisis de integridad.</p>
+        </article>
+        <article class="bg-slate-900 rounded-lg p-4 shadow">
+          <h2 class="text-sm uppercase tracking-wide text-slate-400">Incidencias activas</h2>
+          <p class="text-4xl font-bold mt-2" id="security-incidents">0</p>
+          <p class="text-sm text-slate-400">Componentes con cambios sin aprobar.</p>
+        </article>
+        <article class="bg-slate-900 rounded-lg p-4 shadow">
+          <h2 class="text-sm uppercase tracking-wide text-slate-400">Firma vigente</h2>
+          <p class="text-xs break-all mt-2" id="report-signature">Sin generar</p>
+          <p class="text-sm text-slate-400">Hash SHA-256 del último informe auditado.</p>
+        </article>
+      </section>
+
+      <section class="bg-slate-900 rounded-lg p-6 shadow space-y-4">
+        <div class="flex items-center justify-between gap-4">
+          <h2 class="text-xl font-semibold">Detalle de seguridad</h2>
+          <span id="security-status" class="text-sm uppercase tracking-wide text-emerald-300">Estable</span>
+        </div>
+        <div id="incident-list" class="space-y-3 text-sm text-slate-300">
+          <p>No se registran alteraciones recientes.</p>
+        </div>
+      </section>
+
+      <section class="bg-slate-900 rounded-lg p-6 shadow space-y-4">
+        <div class="flex items-center justify-between gap-4">
+          <h2 class="text-xl font-semibold">Resumen del informe más reciente</h2>
+          <span id="report-timestamp" class="text-sm text-slate-400">—</span>
+        </div>
+        <div class="grid gap-4 md:grid-cols-2" id="report-overview">
+          <article class="p-4 bg-slate-950/50 rounded">
+            <h3 class="text-sm uppercase tracking-wide text-slate-400">Inferencias monitoreadas</h3>
+            <p class="text-3xl font-semibold mt-2" id="inference-count">0</p>
+            <p class="text-xs text-slate-500">Total considerado en la última auditoría.</p>
+          </article>
+          <article class="p-4 bg-slate-950/50 rounded">
+            <h3 class="text-sm uppercase tracking-wide text-slate-400">Consenso distribuido</h3>
+            <p class="text-lg font-medium mt-2" id="consensus-mode">—</p>
+            <p class="text-xs text-slate-500">Modo operativo y estado de fallas registradas.</p>
+          </article>
+          <article class="p-4 bg-slate-950/50 rounded md:col-span-2">
+            <h3 class="text-sm uppercase tracking-wide text-slate-400">Métricas éticas y cognitivas</h3>
+            <pre
+              id="metrics-preview"
+              class="mt-3 text-xs text-slate-300 bg-slate-900/80 rounded p-3 overflow-x-auto"
+            >Sin datos</pre>
+          </article>
+        </div>
+      </section>
+
+      <section class="bg-slate-900 rounded-lg p-6 shadow">
+        <h2 class="text-xl font-semibold mb-4">Alertas históricas</h2>
+        <ul id="alert-history" class="space-y-3 text-sm text-slate-300">
+          <li>No hay alertas previas registradas.</li>
+        </ul>
+      </section>
+    </main>
+
+    <script>
+      async function fetchStatus() {
+        const response = await fetch("/supervision/status");
+        if (!response.ok) {
+          throw new Error("No fue posible obtener el estado de supervisión");
+        }
+        return response.json();
+      }
+
+      function renderSecurity(security) {
+        const incidentCount = security?.incidents?.length ?? 0;
+        document.getElementById("security-incidents").textContent = incidentCount;
+        document.getElementById("security-timestamp").textContent = security?.timestamp || "—";
+        const status = document.getElementById("security-status");
+        status.textContent = incidentCount === 0 ? "Estable" : "Revisión requerida";
+        status.className =
+          incidentCount === 0
+            ? "text-sm uppercase tracking-wide text-emerald-300"
+            : "text-sm uppercase tracking-wide text-amber-300";
+        const list = document.getElementById("incident-list");
+        list.innerHTML = "";
+        if (incidentCount === 0) {
+          const p = document.createElement("p");
+          p.textContent = "No se registran alteraciones recientes.";
+          list.appendChild(p);
+          return;
+        }
+        security.incidents.forEach((incident) => {
+          const item = document.createElement("div");
+          item.className = "border border-amber-400/40 rounded p-3";
+          item.innerHTML = `
+            <p class="font-semibold">${incident.component}</p>
+            <p class="text-xs text-slate-400">Esperado: <code>${incident.expected ?? "—"}</code></p>
+            <p class="text-xs text-slate-400">Detectado: <code>${incident.observed ?? "—"}</code></p>
+          `;
+          list.appendChild(item);
+        });
+      }
+
+      function renderReport(report) {
+        if (!report) {
+          document.getElementById("report-signature").textContent = "Sin generar";
+          document.getElementById("report-timestamp").textContent = "—";
+          document.getElementById("inference-count").textContent = "0";
+          document.getElementById("consensus-mode").textContent = "—";
+          document.getElementById("metrics-preview").textContent = "Sin datos";
+          return;
+        }
+        document.getElementById("report-signature").textContent = report.signature || "Sin firma";
+        document.getElementById("report-timestamp").textContent = report.generated_at || "—";
+        const snapshot = report.snapshot || {};
+        const inferences = snapshot.inferences || [];
+        document.getElementById("inference-count").textContent = inferences.length;
+        const consensus = snapshot.consensus || {};
+        const mode = consensus.mode || "—";
+        const failures = consensus.failure_streak ?? "0";
+        document.getElementById("consensus-mode").textContent = `${mode} — fallas: ${failures}`;
+        const metricsPreview = document.getElementById("metrics-preview");
+        metricsPreview.textContent = JSON.stringify(snapshot.metrics || {}, null, 2);
+      }
+
+      function renderAlerts(alerts) {
+        const history = document.getElementById("alert-history");
+        history.innerHTML = "";
+        if (!alerts || alerts.length === 0) {
+          const item = document.createElement("li");
+          item.textContent = "No hay alertas previas registradas.";
+          history.appendChild(item);
+          return;
+        }
+        alerts
+          .slice()
+          .reverse()
+          .forEach((alert) => {
+            const item = document.createElement("li");
+            item.className = "border border-slate-700 rounded p-3";
+            const summary = Array.isArray(alert.incidents)
+              ? alert.incidents.map((i) => i.component).join(", ")
+              : "Incidentes detectados";
+            item.innerHTML = `
+              <p class="font-semibold">${alert.timestamp}</p>
+              <p class="text-xs text-slate-400">${summary}</p>
+            `;
+            history.appendChild(item);
+          });
+      }
+
+      async function refreshDashboard() {
+        try {
+          const data = await fetchStatus();
+          renderSecurity(data.security);
+          renderReport(data.latest_report);
+          renderAlerts(data.alerts);
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      document.getElementById("generate-report").addEventListener("click", async () => {
+        const button = document.getElementById("generate-report");
+        button.disabled = true;
+        button.textContent = "Generando…";
+        try {
+          const response = await fetch("/audit/generate", { method: "POST" });
+          if (!response.ok) {
+            throw new Error("Error al generar el informe");
+          }
+          await refreshDashboard();
+        } catch (error) {
+          console.error(error);
+        } finally {
+          button.disabled = false;
+          button.textContent = "Generar Informe";
+        }
+      });
+
+      refreshDashboard();
+    </script>
+  </body>
+</html>
