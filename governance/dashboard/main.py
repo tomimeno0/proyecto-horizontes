@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from net.node_registry import get_registry
+from horizonte.net.consensus_manager import get_consensus_manager
 
 
 class DashboardMetrics:
@@ -78,6 +79,36 @@ api_router = APIRouter(tags=["dashboard"])
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
+def _network_snapshot() -> Dict[str, object]:
+    registry = get_registry()
+    nodes = []
+    for node in registry.list_nodes():
+        nodes.append(
+            {
+                "node_id": node.node_id,
+                "status": node.status,
+                "last_activity": node.last_activity.isoformat()
+                if node.last_activity
+                else "N/A",
+                "avg_latency_ms": round(node.avg_latency_ms, 3)
+                if node.avg_latency_ms is not None
+                else None,
+                "sync_score": node.sync_score,
+            }
+        )
+    sync_values = [n["sync_score"] for n in nodes if n["sync_score"] is not None]
+    average_sync = round(sum(sync_values) / len(sync_values), 3) if sync_values else 0.0
+    consensus = get_consensus_manager()
+    return {
+        "nodes": nodes,
+        "average_sync": average_sync,
+        "consensus": {
+            "mode": consensus.mode,
+            "failures": consensus.failure_streak,
+        },
+    }
+
+
 @api_router.get("/", response_class=HTMLResponse)
 async def render_dashboard(request: Request) -> HTMLResponse:
     """Renderiza el dashboard con los indicadores consolidados."""
@@ -93,6 +124,19 @@ async def render_dashboard(request: Request) -> HTMLResponse:
         "top_queries": snapshot["top_queries"],
     }
     return templates.TemplateResponse("index.html", context)
+
+
+@api_router.get("/network", response_class=HTMLResponse)
+async def render_network(request: Request) -> HTMLResponse:
+    """Vista del mapa de red distribuido."""
+
+    snapshot = _network_snapshot()
+    context = {
+        "request": request,
+        **snapshot,
+        "ws_path": "/dashboard/ws/network",
+    }
+    return templates.TemplateResponse("network.html", context)
 
 
 router = FastAPI(title="Horizonte Dashboard", docs_url=None, redoc_url=None)

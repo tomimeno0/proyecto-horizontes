@@ -26,6 +26,8 @@ from horizonte.common.db import init_db
 from horizonte.common.logging import RequestLoggingMiddleware, configure_logging
 from horizonte.governance import transparency_api
 from net.node_registry import router as nodes_router
+from horizonte.net.heartbeat import router as heartbeat_router
+from horizonte.net.sync_protocol import router as sync_router
 
 
 def create_app() -> FastAPI:
@@ -62,6 +64,8 @@ def create_app() -> FastAPI:
     app.include_router(audit.router)
     app.include_router(ethics_audit.router)
     app.include_router(nodes_router, prefix="/nodes")
+    app.include_router(heartbeat_router, prefix="/nodes")
+    app.include_router(sync_router)
     app.include_router(metrics_router.router, prefix="/metrics")
     app.include_router(votes.router, prefix="/governance")
     app.include_router(live_dashboard.router)

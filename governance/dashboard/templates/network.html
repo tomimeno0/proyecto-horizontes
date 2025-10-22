@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="space-y-6">
+  <header>
+    <h1 class="text-3xl font-bold">Mapa de Red</h1>
+    <p class="text-slate-300">Seguimiento de nodos activos, sincronización y consenso distribuido.</p>
+  </header>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="bg-slate-900 rounded-lg p-4 shadow">
+      <h2 class="text-sm uppercase tracking-wide text-slate-400">Sync score promedio</h2>
+      <p id="avg-sync" class="text-2xl font-semibold">{{ average_sync }}</p>
+    </div>
+    <div class="bg-slate-900 rounded-lg p-4 shadow">
+      <h2 class="text-sm uppercase tracking-wide text-slate-400">Estado de consenso</h2>
+      <p class="text-lg" id="consensus-mode">{{ consensus.mode }}</p>
+      <p class="text-sm text-slate-400">Intentos fallidos: <span id="consensus-failures">{{ consensus.failures }}</span></p>
+    </div>
+    <div class="bg-slate-900 rounded-lg p-4 shadow">
+      <h2 class="text-sm uppercase tracking-wide text-slate-400">Última actualización</h2>
+      <p id="network-updated" class="text-lg">—</p>
+    </div>
+  </div>
+
+  <div class="bg-slate-900 rounded-lg shadow">
+    <table class="min-w-full divide-y divide-slate-800" id="nodes-table">
+      <thead class="bg-slate-800">
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Nodo</th>
+          <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Estado</th>
+          <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Último heartbeat</th>
+          <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Latencia media (ms)</th>
+          <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Sync score</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-800">
+        {% for node in nodes %}
+        <tr data-node-id="{{ node.node_id }}">
+          <td class="px-4 py-3 font-semibold node-id">{{ node.node_id }}</td>
+          <td class="px-4 py-3 status">{{ node.status }}</td>
+          <td class="px-4 py-3 last-activity">{{ node.last_activity }}</td>
+          <td class="px-4 py-3 latency">{{ node.avg_latency_ms if node.avg_latency_ms is not none else "N/A" }}</td>
+          <td class="px-4 py-3 sync">{{ node.sync_score if node.sync_score is not none else "N/A" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+  (function() {
+    const table = document.getElementById('nodes-table').querySelector('tbody');
+    const avgSyncEl = document.getElementById('avg-sync');
+    const consensusModeEl = document.getElementById('consensus-mode');
+    const consensusFailEl = document.getElementById('consensus-failures');
+    const updatedEl = document.getElementById('network-updated');
+
+    function upsertRow(node) {
+      let row = table.querySelector(`[data-node-id="${node.node_id}"]`);
+      if (!row) {
+        row = document.createElement('tr');
+        row.setAttribute('data-node-id', node.node_id);
+        row.innerHTML = `
+          <td class="px-4 py-3 font-semibold node-id"></td>
+          <td class="px-4 py-3 status"></td>
+          <td class="px-4 py-3 last-activity"></td>
+          <td class="px-4 py-3 latency"></td>
+          <td class="px-4 py-3 sync"></td>
+        `;
+        table.appendChild(row);
+      }
+      row.querySelector('.node-id').textContent = node.node_id;
+      row.querySelector('.status').textContent = node.status;
+      row.querySelector('.last-activity').textContent = node.last_activity || 'N/A';
+      row.querySelector('.latency').textContent =
+        node.avg_latency_ms !== null && node.avg_latency_ms !== undefined
+          ? node.avg_latency_ms.toFixed(2)
+          : 'N/A';
+      row.querySelector('.sync').textContent =
+        node.sync_score !== null && node.sync_score !== undefined
+          ? node.sync_score.toFixed(3)
+          : 'N/A';
+    }
+
+    function refreshNodes(nodes) {
+      const seen = new Set();
+      nodes.forEach((node) => {
+        seen.add(node.node_id);
+        upsertRow(node);
+      });
+      table.querySelectorAll('tr').forEach((row) => {
+        const nodeId = row.getAttribute('data-node-id');
+        if (!seen.has(nodeId)) {
+          row.remove();
+        }
+      });
+    }
+
+    function connect() {
+      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      const ws = new WebSocket(`${protocol}://${window.location.host}{{ ws_path }}`);
+
+      ws.onmessage = (event) => {
+        const payload = JSON.parse(event.data);
+        avgSyncEl.textContent = payload.average_sync.toFixed(3);
+        consensusModeEl.textContent = payload.consensus.mode;
+        consensusFailEl.textContent = payload.consensus.failures;
+        updatedEl.textContent = new Date(payload.timestamp).toLocaleTimeString();
+        refreshNodes(payload.nodes);
+      };
+
+      ws.onclose = () => {
+        setTimeout(connect, 3000);
+      };
+    }
+
+    connect();
+  })();
+</script>
+{% endblock %}
