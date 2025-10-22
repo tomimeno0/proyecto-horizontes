@@ -36,6 +36,7 @@ class InferResponse(BaseModel):
     hash: str
     timestamp: str
     ethics: dict
+    ethics_metrics: dict
 
 
 def _get_db_session() -> Iterator[Session]:
@@ -65,6 +66,13 @@ async def realizar_inferencia(
     record_internal_inference(latency_ms, ethics_denegada)
 
     metrics_manager.record_inference(query_sanitizado, evaluacion)
+    adaptive_metrics = ethics_filter.register_adaptive_inference(
+        query=query_sanitizado,
+        response_hash=hash_value,
+        flags=evaluacion.get("flags", []),
+        response_time_ms=latency_ms,
+        allowed=bool(evaluacion.get("allowed", False)),
+    )
     settings = getattr(request.app.state, "settings", None)
     node_identifier = getattr(settings, "node_id", "nodo-desconocido")
     consensus = await consensus_manager.broadcast_result_async(
@@ -82,4 +90,5 @@ async def realizar_inferencia(
         hash=registro.hash,
         timestamp=registro.timestamp,
         ethics=evaluacion,
+        ethics_metrics=adaptive_metrics,
     )

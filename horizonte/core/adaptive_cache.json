@@ -1,0 +1,13 @@
+{
+  "buffer": [],
+  "metrics": {
+    "precision": 1.0,
+    "consistency": 1.0,
+    "bias_index": 0.0,
+    "last_update": "1970-01-01T00:00:00+00:00"
+  },
+  "sensitivity": {
+    "contenido_peligroso": 1.0,
+    "posible_sesgo": 1.0
+  }
+}

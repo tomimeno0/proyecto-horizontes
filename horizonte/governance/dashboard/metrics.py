@@ -17,7 +17,7 @@ templates = Jinja2Templates(directory=str(_templates_dir))
 
 
 @router.get("/json")
-async def metrics_json() -> dict[str, float | int]:
+async def metrics_json() -> dict[str, float | int | dict[str, object]]:
     """Retorna las métricas internas en formato JSON."""
     return get_metrics()
 

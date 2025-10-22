@@ -7,6 +7,8 @@ from collections import deque
 from threading import Lock
 
 
+from horizonte.core.adaptive_learning import get_adaptive_trainer
+
 class TelemetryCollector:
     """Mantiene métricas en memoria para consumo del dashboard interno."""
 
@@ -59,9 +61,11 @@ class TelemetryCollector:
         }
 
 
-def get_metrics() -> dict[str, float | int]:
+def get_metrics() -> dict[str, float | int | dict[str, object]]:
     """Devuelve las métricas actuales para el dashboard."""
-    return telemetry.snapshot()
+    metrics = telemetry.snapshot()
+    metrics["ethics_adaptive"] = get_adaptive_trainer().export_metrics()
+    return metrics
 
 
 def record_inference(latency_ms: float, ethics_denegada: bool) -> None:

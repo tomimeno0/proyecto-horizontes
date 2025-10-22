@@ -9,6 +9,8 @@
       ul { list-style: none; padding: 0; }
       li { margin-bottom: 0.5rem; font-size: 1.1rem; }
       .metric-value { font-weight: bold; }
+      .adaptive-block { margin-top: 2rem; padding: 1.5rem; background: #fff; border-radius: 0.75rem; box-shadow: 0 10px 30px rgba(27, 48, 78, 0.08); }
+      .adaptive-block h2 { margin-top: 0; color: #314e89; }
     </style>
   </head>
   <body>
@@ -31,5 +33,27 @@
         <span class="metric-value">{{ consultas_por_minuto }}</span>
       </li>
     </ul>
+    {% set adapt = ethics_adaptive %}
+    <section class="adaptive-block">
+      <h2>Ética Adaptativa</h2>
+      <ul>
+        <li>
+          Precisión Ética:
+          <span class="metric-value">{{ (adapt.precision * 100) | round(2) }}%</span>
+        </li>
+        <li>
+          Consistencia Cognitiva:
+          <span class="metric-value">{{ (adapt.consistency * 100) | round(2) }}%</span>
+        </li>
+        <li>
+          Índice de Sesgo:
+          <span class="metric-value">{{ adapt.bias_index | round(3) }}</span>
+        </li>
+        <li>
+          Última actualización:
+          <span class="metric-value">{{ adapt.last_update }}</span>
+        </li>
+      </ul>
+    </section>
   </body>
 </html>
