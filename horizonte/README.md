@@ -55,7 +55,16 @@ docker compose up --build
 El stack levanta:
 
 - `api`: servicio FastAPI con rate limiting, CORS seguro y ledger SQLite.
-- `verifier`: servicio auxiliar que expone `/health` y `/quorum` para validar hashes.
+- `verifier`: microservicio que expone `/health` y `/verify` para validar hashes.
+
+### Fase 2 – Consenso y Transparencia
+
+- Nodo verifier: simula validación distribuida.
+- Dashboard: métricas públicas en /dashboard.
+- Ejecutar con Docker:
+  ```bash
+  docker compose up --build
+  ```
 
 ## Scripts útiles
 
@@ -84,4 +93,4 @@ Las pruebas cubren inferencias, auditoría y núcleo determinista.
 Fase 2 contempla consenso entre nodos, dashboard público y sincronización gRPC real.
 
 ---
-Made by ChatGPT (Proyecto Horizonte)
+Made by ChatGPT (AUREUS Core — Proyecto Horizonte)
