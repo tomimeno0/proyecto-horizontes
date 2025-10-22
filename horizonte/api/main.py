@@ -23,7 +23,7 @@ from governance.dashboard.main import STATIC_DIR
 from governance.dashboard.main import api_router as dashboard_api_router
 from governance.routes import votes
 from horizonte.api.middleware.security import SecurityMiddleware
-from horizonte.api.routes import audit, cognition, ethics_audit, health, infer
+from horizonte.api.routes import audit, cognition, ethics_audit, health, infer, supervision
 from horizonte.common.config import Settings, get_settings
 from horizonte.common.db import init_db
 from horizonte.common.logging import RequestLoggingMiddleware, configure_logging
@@ -95,6 +95,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(infer.router)
     app.include_router(audit.router)
+    app.include_router(supervision.router)
     app.include_router(cognition.router)
     app.include_router(ethics_audit.router)
     app.include_router(nodes_router, prefix="/nodes")

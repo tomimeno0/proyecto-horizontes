@@ -81,12 +81,20 @@ pytest -q
 
 Las pruebas cubren inferencias, auditoría y núcleo determinista.
 
-## Seguridad y observabilidad
+## Seguridad, auditoría y supervisión
 
 - Limitación de tasa configurable con SlowAPI.
 - Tamaño máximo de payload definido en configuración.
 - Logging estructurado en JSON con identificación del nodo.
 - Manejo consistente de errores y ocultamiento de trazas internas.
+- `SecurityMonitor` calcula hashes de código, ledger y reportes auditados para detectar cambios no autorizados. Las correcciones en producción requieren aprobación explícita (`approved_by`).
+- `audit_snapshot()` genera `horizonte/governance/audit_report.json` con firma SHA-256 y sello temporal; su contenido puede verificarse reproduciendo el hash del bloque `snapshot`.
+- Nuevas rutas API:
+  - `GET /supervision/status`: estado de integridad y alertas registradas.
+  - `POST /audit/generate`: ejecuta una auditoría completa y devuelve el JSON firmado.
+  - `GET /audit/report`: descarga el último informe disponible.
+- Panel visual en `/dashboard/audit` (o `/audit`), donde puede generarse el informe, revisar incidencias y descargar el JSON firmado.
+- Los hashes publicados permiten comparaciones entre nodos para confirmar sincronización ética, cognitiva y de red.
 
 ## Próximos pasos
 
