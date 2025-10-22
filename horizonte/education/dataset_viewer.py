@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Iterable, List
+from collections.abc import Iterable
 
 
-def listar_campos(dataset: Iterable[dict]) -> List[str]:
+def listar_campos(dataset: Iterable[dict[str, object]]) -> list[str]:
     """Retorna los campos disponibles en un conjunto de datos iterable."""
     campos: set[str] = set()
     for fila in dataset:
@@ -14,5 +14,8 @@ def listar_campos(dataset: Iterable[dict]) -> List[str]:
 
 
 if __name__ == "__main__":  # pragma: no cover - ejemplo manual
-    datos = [{"tema": "ética", "nivel": "básico"}, {"tema": "técnica", "nivel": "avanzado", "duracion": 40}]
+    datos: list[dict[str, object]] = [
+        {"tema": "ética", "nivel": "básico"},
+        {"tema": "técnica", "nivel": "avanzado", "duracion": 40},
+    ]
     print(listar_campos(datos))

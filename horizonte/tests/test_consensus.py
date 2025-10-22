@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
+from pydantic import AnyHttpUrl
 
 from net import consensus_manager
 from net.node_registry import NodePayload, get_registry
@@ -23,7 +26,11 @@ def _registrar_nodos(total: int, aprobaciones: dict[int, bool]) -> dict[str, boo
     for idx in range(1, total + 1):
         node_id = f"validator-{idx}"
         address = f"http://validator{idx}.example.com"
-        registry.register(NodePayload(node_id=node_id, address=address, status="activo"))
+        registry.register(
+            NodePayload(
+                node_id=node_id, address=cast(AnyHttpUrl, address), status="activo"
+            )
+        )
         address_map[address] = aprobaciones.get(idx, False)
     return address_map
 
@@ -36,11 +43,14 @@ def test_broadcast_result_aprueba_dos_tercios(monkeypatch: pytest.MonkeyPatch) -
     def _falso_verificador(address: str, payload: dict[str, str]) -> bool:
         return respuestas[address]
 
-    monkeypatch.setattr(consensus_manager, "_simulate_remote_verification", _falso_verificador)
+    monkeypatch.setattr(
+        consensus_manager, "_simulate_remote_verification", _falso_verificador
+    )
 
     resultado = consensus_manager.broadcast_result("origin-node", "hash-prueba")
     assert resultado["approved"] is True
-    assert len(resultado["validators"]) == 4
+    validadores = cast(list[str], resultado["validators"])
+    assert len(validadores) == 4
 
 
 def test_broadcast_result_falla_sin_quorum(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -51,8 +61,11 @@ def test_broadcast_result_falla_sin_quorum(monkeypatch: pytest.MonkeyPatch) -> N
     def _falso_verificador(address: str, payload: dict[str, str]) -> bool:
         return respuestas[address]
 
-    monkeypatch.setattr(consensus_manager, "_simulate_remote_verification", _falso_verificador)
+    monkeypatch.setattr(
+        consensus_manager, "_simulate_remote_verification", _falso_verificador
+    )
 
     resultado = consensus_manager.broadcast_result("origin-node", "hash-prueba")
     assert resultado["approved"] is False
-    assert set(resultado["validators"]) == {"validator-1", "validator-2", "validator-3"}
+    validadores = cast(list[str], resultado["validators"])
+    assert set(validadores) == {"validator-1", "validator-2", "validator-3"}

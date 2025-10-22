@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Proyecto Horizonte — Métricas del Sistema</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 2rem; background: #f6f8fa; }
+      h1 { color: #2b4c7e; }
+      ul { list-style: none; padding: 0; }
+      li { margin-bottom: 0.5rem; font-size: 1.1rem; }
+      .metric-value { font-weight: bold; }
+    </style>
+  </head>
+  <body>
+    <h1>Proyecto Horizonte — Métricas del Sistema</h1>
+    <ul>
+      <li>
+        Inferencias totales:
+        <span class="metric-value">{{ inferencias_totales }}</span>
+      </li>
+      <li>
+        Promedio de latencia:
+        <span class="metric-value">{{ promedio_latencia_ms }}</span> ms
+      </li>
+      <li>
+        Éticas denegadas:
+        <span class="metric-value">{{ respuestas_ethics_denegadas }}</span>
+      </li>
+      <li>
+        Consultas por minuto:
+        <span class="metric-value">{{ consultas_por_minuto }}</span>
+      </li>
+    </ul>
+  </body>
+</html>

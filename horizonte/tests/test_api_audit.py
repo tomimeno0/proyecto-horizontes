@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -10,7 +12,7 @@ from horizonte.common.db import Base, engine
 
 
 @pytest.fixture(autouse=True)
-def limpiar_ledger() -> None:
+def limpiar_ledger() -> Generator[None, None, None]:
     """Reinicia la base de datos antes de cada prueba."""
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
@@ -18,7 +20,7 @@ def limpiar_ledger() -> None:
     Base.metadata.drop_all(bind=engine)
 
 
-@pytest.mark.anyio
+@pytest.mark.anyio("asyncio")
 async def test_auditoria_lista_registros() -> None:
     """La auditoría debe listar los registros generados."""
     transport = ASGITransport(app=app)
