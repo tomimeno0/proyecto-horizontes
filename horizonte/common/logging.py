@@ -6,7 +6,7 @@ import json
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -23,17 +23,27 @@ class JsonFormatter(logging.Formatter):
         self.node_id = node_id
 
     def format(self, record: logging.LogRecord) -> str:
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "ts": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
-            "message": record.getMessage(),
             "module": record.name,
+            "message": record.getMessage(),
             "node_id": self.node_id,
         }
-        extra_keys = {"method", "path", "status", "ms"}
-        for key in extra_keys:
+
+        request_id = record.__dict__.get("request_id")
+        if request_id:
+            payload["request_id"] = request_id
+
+        latency_ms = record.__dict__.get("latency_ms")
+        if latency_ms is not None:
+            payload["latency_ms"] = latency_ms
+
+        additional_keys = {"reason", "status", "path", "method", "error"}
+        for key in additional_keys:
             if hasattr(record, key):
                 payload[key] = getattr(record, key)
+
         if record.exc_info:
             payload["error"] = self.formatException(record.exc_info)
         return json.dumps(payload, ensure_ascii=False)
@@ -41,6 +51,7 @@ class JsonFormatter(logging.Formatter):
 
 def configure_logging(settings: Settings) -> logging.Logger:
     """Configura el logger raíz con formato JSON."""
+
     logger = logging.getLogger()
     logger.setLevel(settings.log_level)
     handler = logging.StreamHandler()
@@ -53,7 +64,9 @@ def configure_logging(settings: Settings) -> logging.Logger:
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Middleware que registra cada solicitud entrante."""
 
-    def __init__(self, app: Any, logger: logging.Logger) -> None:  # pragma: no cover - se valida en integración
+    def __init__(
+        self, app: Any, logger: logging.Logger
+    ) -> None:  # pragma: no cover - validado en integración
         super().__init__(app)
         self.logger = logger
 
@@ -61,13 +74,16 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         inicio = time.perf_counter()
         response = await call_next(request)
         duracion_ms = (time.perf_counter() - inicio) * 1000
+        latency = round(duracion_ms, 2)
+        request_id = getattr(request.state, "request_id", None)
         self.logger.info(
             "request",
             extra={
                 "method": request.method,
                 "path": request.url.path,
                 "status": response.status_code,
-                "ms": round(duracion_ms, 2),
+                "latency_ms": latency,
+                "request_id": request_id,
             },
         )
         return response
