@@ -67,7 +67,9 @@ async def realizar_inferencia(
     metrics_manager.record_inference(query_sanitizado, evaluacion)
     settings = getattr(request.app.state, "settings", None)
     node_identifier = getattr(settings, "node_id", "nodo-desconocido")
-    consensus = consensus_manager.broadcast_result(node_identifier, hash_value)
+    consensus = await consensus_manager.broadcast_result_async(
+        node_identifier, hash_value
+    )
     logger = getattr(request.app.state, "logger", None)
     if logger:
         logger.info("consenso_inferencia", extra=consensus)

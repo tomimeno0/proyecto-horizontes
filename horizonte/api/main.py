@@ -9,13 +9,16 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
+from governance.dashboard import live as live_dashboard
 from governance.dashboard import metrics as metrics_router
-from governance.dashboard.main import router as dashboard_router
+from governance.dashboard.main import STATIC_DIR, api_router as dashboard_api_router
+from governance.routes import votes
 from horizonte.api.middleware.security import SecurityMiddleware
 from horizonte.api.routes import audit, health, infer
 from horizonte.common.config import Settings, get_settings
@@ -59,10 +62,18 @@ def create_app() -> FastAPI:
     app.include_router(audit.router)
     app.include_router(nodes_router, prefix="/nodes")
     app.include_router(metrics_router.router, prefix="/metrics")
+    app.include_router(votes.router, prefix="/governance")
+    app.include_router(live_dashboard.router)
+    app.include_router(live_dashboard.router, prefix="/dashboard")
+    app.include_router(dashboard_api_router, prefix="/dashboard")
+    app.mount(
+        "/dashboard/static",
+        StaticFiles(directory=str(STATIC_DIR)),
+        name="dashboard-static",
+    )
 
     transparencia_router = transparency_api.get_router()
     app.include_router(transparencia_router)
-    app.mount("/dashboard", dashboard_router)
 
     registrar_manejadores(app, settings, logger)
     return app

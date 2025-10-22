@@ -9,6 +9,8 @@ pytest
 httpx
 trio
 Jinja2
+websockets
+aiofiles
 black
 ruff
 mypy
