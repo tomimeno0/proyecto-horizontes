@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 from uuid import uuid4
 
@@ -17,17 +19,48 @@ from slowapi.util import get_remote_address
 
 from governance.dashboard import live as live_dashboard
 from governance.dashboard import metrics as metrics_router
-from governance.dashboard.main import STATIC_DIR, api_router as dashboard_api_router
+from governance.dashboard.main import STATIC_DIR
+from governance.dashboard.main import api_router as dashboard_api_router
 from governance.routes import votes
 from horizonte.api.middleware.security import SecurityMiddleware
-from horizonte.api.routes import audit, ethics_audit, health, infer
+from horizonte.api.routes import audit, cognition, ethics_audit, health, infer
 from horizonte.common.config import Settings, get_settings
 from horizonte.common.db import init_db
 from horizonte.common.logging import RequestLoggingMiddleware, configure_logging
+from horizonte.core.metacognition import get_cognitive_mirror
 from horizonte.governance import transparency_api
-from net.node_registry import router as nodes_router
+from horizonte.net.cognitive_sync import CognitiveSync
 from horizonte.net.heartbeat import router as heartbeat_router
 from horizonte.net.sync_protocol import router as sync_router
+from net.node_registry import router as nodes_router
+
+
+def registrar_tareas_cognitivas(app: FastAPI, settings: Settings) -> None:
+    """Inicializa las tareas periódicas de autoevaluación y sincronización."""
+
+    mirror = get_cognitive_mirror()
+    sync_service = CognitiveSync(node_id=settings.node_id)
+    tasks: list[asyncio.Task[object]] = []
+
+    async def self_check_loop() -> None:
+        while True:
+            mirror.analyze_self()
+            await asyncio.sleep(600)
+
+    @app.on_event("startup")
+    async def start_cognitive_tasks() -> None:  # pragma: no cover - integración
+        tasks.clear()
+        tasks.append(asyncio.create_task(self_check_loop()))
+        tasks.append(asyncio.create_task(sync_service.run()))
+        app.state.cognitive_tasks = tasks
+
+    @app.on_event("shutdown")
+    async def stop_cognitive_tasks() -> None:  # pragma: no cover - integración
+        for task in tasks:
+            task.cancel()
+        for task in tasks:
+            with contextlib.suppress(Exception):
+                await task
 
 
 def create_app() -> FastAPI:
@@ -62,6 +95,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(infer.router)
     app.include_router(audit.router)
+    app.include_router(cognition.router)
     app.include_router(ethics_audit.router)
     app.include_router(nodes_router, prefix="/nodes")
     app.include_router(heartbeat_router, prefix="/nodes")
@@ -81,12 +115,11 @@ def create_app() -> FastAPI:
     app.include_router(transparencia_router)
 
     registrar_manejadores(app, settings, logger)
+    registrar_tareas_cognitivas(app, settings)
     return app
 
 
-def registrar_manejadores(
-    app: FastAPI, settings: Settings, logger: logging.Logger
-) -> None:
+def registrar_manejadores(app: FastAPI, settings: Settings, logger: logging.Logger) -> None:
     """Registra manejadores de errores consistentes."""
 
     @app.exception_handler(RequestValidationError)
@@ -113,21 +146,15 @@ def registrar_manejadores(
         return JSONResponse(status_code=400, content={"detail": str(exc)})
 
     @app.exception_handler(RateLimitExceeded)
-    async def rate_limit_handler(
-        request: Request, exc: RateLimitExceeded
-    ) -> JSONResponse:
+    async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
         return JSONResponse(
             status_code=429, content={"detail": "Se excedió el límite de solicitudes."}
         )
 
     @app.exception_handler(Exception)
-    async def unhandled_exception_handler(
-        request: Request, exc: Exception
-    ) -> JSONResponse:
+    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         request_id = str(uuid4())
-        logger.error(
-            "error_no_controlado", exc_info=exc, extra={"request_id": request_id}
-        )
+        logger.error("error_no_controlado", exc_info=exc, extra={"request_id": request_id})
         return JSONResponse(
             status_code=500,
             content={"detail": "Error interno del servidor.", "request_id": request_id},

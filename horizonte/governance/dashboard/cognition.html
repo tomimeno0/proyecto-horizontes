@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Horizonte — Autoevaluación de AUREUS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-slate-950 text-slate-100 min-h-screen">
+    <main class="max-w-4xl mx-auto py-10 px-4 space-y-8">
+      <header class="space-y-2">
+        <h1 class="text-3xl font-semibold">Autoevaluación de AUREUS</h1>
+        <p class="text-slate-300">
+          Estado cognitivo interno y consistencia distribuida actualizados cada 5 segundos.
+        </p>
+      </header>
+      <section class="grid gap-4 md:grid-cols-2" id="cards">
+        <article class="bg-slate-900 rounded-lg p-4 shadow" data-key="divergence_index">
+          <h2 class="text-sm uppercase tracking-wide text-slate-400">Divergence Index</h2>
+          <p class="text-3xl font-semibold mt-2" id="divergence_index">0.000</p>
+          <p class="text-xs text-slate-500 mt-1">
+            Promedio de divergencia entre subcogniciones activas.
+          </p>
+        </article>
+        <article class="bg-slate-900 rounded-lg p-4 shadow" data-key="global_consistency">
+          <h2 class="text-sm uppercase tracking-wide text-slate-400">Consistencia global</h2>
+          <p class="text-3xl font-semibold mt-2" id="global_consistency">1.000</p>
+          <p class="text-xs text-slate-500 mt-1">
+            Coherencia derivada del ledger de inferencias recientes.
+          </p>
+        </article>
+        <article class="bg-slate-900 rounded-lg p-4 shadow" data-key="collective_consistency">
+          <h2 class="text-sm uppercase tracking-wide text-slate-400">Consistencia colectiva</h2>
+          <p class="text-3xl font-semibold mt-2" id="collective_consistency">—</p>
+          <p class="text-xs text-slate-500 mt-1">
+            Promedio compartido entre nodos de la red Horizonte.
+          </p>
+        </article>
+        <article class="bg-slate-900 rounded-lg p-4 shadow" data-key="cycles">
+          <h2 class="text-sm uppercase tracking-wide text-slate-400">Ciclos de autoevaluación</h2>
+          <p class="text-3xl font-semibold mt-2" id="cycles">0</p>
+          <p class="text-xs text-slate-500 mt-1">
+            Cantidad de iteraciones completadas por el núcleo metacognitivo.
+          </p>
+        </article>
+      </section>
+      <section class="bg-slate-900 rounded-lg p-4 shadow">
+        <h2 class="text-sm uppercase tracking-wide text-slate-400">Último ciclo de auditoría</h2>
+        <p class="text-lg font-medium mt-2" id="last_audit">Sin ejecutar</p>
+        <p class="mt-2 text-slate-400" id="network_state">Estado de red: estable</p>
+      </section>
+    </main>
+    <script>
+      const ws = new WebSocket("ws://localhost:8000/ws/cognition");
+      const fields = [
+        "divergence_index",
+        "global_consistency",
+        "collective_consistency",
+        "cycles",
+        "last_audit",
+      ];
+
+      function formatScore(value) {
+        if (value === null || value === undefined) {
+          return "—";
+        }
+        if (typeof value === "number") {
+          return value.toFixed(3);
+        }
+        return String(value);
+      }
+
+      ws.onmessage = (event) => {
+        const payload = JSON.parse(event.data);
+        fields.forEach((key) => {
+          const element = document.getElementById(key);
+          if (!element) return;
+          if (key === "cycles") {
+            element.textContent = payload[key] ?? 0;
+          } else if (key === "last_audit") {
+            element.textContent = payload[key] || "Sin ejecutar";
+          } else {
+            element.textContent = formatScore(payload[key]);
+          }
+        });
+        const state = document.getElementById("network_state");
+        if (state) {
+          const collective = payload.collective_consistency;
+          if (collective !== null && collective < 0.7) {
+            state.textContent = "Estado de red: re-sincronización requerida";
+            state.className = "mt-2 text-red-400";
+          } else {
+            state.textContent = "Estado de red: estable";
+            state.className = "mt-2 text-slate-400";
+          }
+        }
+      };
+
+      ws.onerror = () => {
+        console.error("Conexión cognitiva interrumpida");
+      };
+    </script>
+  </body>
+</html>
