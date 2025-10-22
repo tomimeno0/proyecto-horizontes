@@ -1,67 +1,24 @@
-"""Gestor de consenso para la red Horizonte."""
+"""Compatibilidad con el gestor de consenso moderno."""
 
 from __future__ import annotations
 
-import logging
-import math
-from typing import Dict, List
+import anyio
 
-from net.node_registry import Node, get_registry
-
-logger = logging.getLogger("net.consensus_manager")
+from horizonte.net import sim_net
+from horizonte.net.consensus_manager import broadcast_result_async  # noqa: F401
 
 
-def _simulate_remote_verification(address: str, payload: Dict[str, str]) -> bool:
-    """Simula la verificación remota realizada por un nodo validador."""
+def _simulate_remote_verification(address: str, payload: dict[str, str]) -> bool:
+    """Compatibilidad con las pruebas legadas."""
 
-    return True
-
-
-def _build_payload(origin_node_id: str, h: str) -> Dict[str, str]:
-    """Construye el cuerpo común enviado a los validadores."""
-
-    return {"hash": h, "origin": origin_node_id}
+    return anyio.run(sim_net.simulate_call, address, payload)
 
 
-def broadcast_result(origin_node_id: str, h: str, quorum: int | None = None) -> dict[str, str | bool | List[str]]:
-    """Obtiene un consenso distribuido para el hash indicado."""
+def broadcast_result(origin_node_id: str, h: str, quorum: int | None = None) -> dict[str, object]:
+    """Ejecuta el consenso asíncrono en modo síncrono."""
 
-    registry = get_registry()
-    nodes: List[Node] = registry.list_nodes()
-    candidates = [node for node in nodes if node.node_id != origin_node_id]
+    return anyio.run(broadcast_result_async, origin_node_id, h, quorum)
 
-    total = len(candidates)
-    required = quorum if quorum is not None else math.ceil((2 * total) / 3)
-    validators_ok: List[str] = []
 
-    if total > 0:
-        payload = _build_payload(origin_node_id, h)
-        for node in candidates:
-            address = str(node.address).rstrip("/")
-            try:
-                if _simulate_remote_verification(address, payload):
-                    validators_ok.append(node.node_id)
-            except Exception:  # pragma: no cover - protege ante fallos inesperados
-                logger.error(
-                    "error_verificacion",
-                    extra={"address": address},
-                    exc_info=True,
-                )
-
-        approved = len(validators_ok) >= required
-    else:
-        approved = False
-
-    logger.info(
-        "resultado_consenso",
-        extra={
-            "hash": h,
-            "approved": approved,
-            "ok": len(validators_ok),
-            "total": total,
-            "required": required,
-        },
-    )
-
-    return {"hash": h, "approved": approved, "validators": validators_ok}
+__all__ = ["broadcast_result", "broadcast_result_async"]
 

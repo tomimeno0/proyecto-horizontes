@@ -1,73 +1,108 @@
-"""Sistema de votación in-memory para experimentar con gobernanza."""
+"""Sistema básico de gobernanza con propuestas y votos."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import dataclass, field
-from typing import Any, cast
+from datetime import datetime, timezone
+from threading import RLock
+from typing import Dict, List, Literal
+from uuid import uuid4
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 
 class Proposal(BaseModel):
-    """Propuesta registrada en el sistema."""
+    """Propuesta registrada en el sistema in-memory."""
 
-    id: str = Field(..., min_length=3)
-    title: str = Field(..., min_length=5)
+    id: str
+    title: str = Field(..., min_length=3)
     description: str = Field(..., min_length=10)
+    votes_for: int = 0
+    votes_against: int = 0
+    created_at: datetime
 
 
-class Vote(BaseModel):
-    """Voto emitido por una persona participante."""
-
-    proposal_id: str
-    voter_id: str
-    value: bool
+VoteValue = Literal["for", "against"]
 
 
-@dataclass
-class VoteRegistry:
-    """Registro simple de propuestas y votos en memoria."""
+class VoteSystem:
+    """Gestor concurrente de propuestas y recuentos."""
 
-    proposals: dict[str, Proposal] = field(default_factory=dict)
-    votes: dict[str, list[Vote]] = field(default_factory=dict)
+    def __init__(self) -> None:
+        self._lock = RLock()
+        self._proposals: Dict[str, Proposal] = {}
 
-    def register_proposal(self, data: Mapping[str, object]) -> Proposal:
-        """Registra una nueva propuesta validando los datos."""
-        payload = cast(Mapping[str, Any], data)
-        try:
-            proposal = Proposal(**payload)
-        except ValidationError as exc:
-            raise ValueError(f"Propuesta inválida: {exc}") from exc
-        self.proposals[proposal.id] = proposal
-        self.votes.setdefault(proposal.id, [])
-        return proposal
+    def create_proposal(self, title: str, description: str) -> Proposal:
+        with self._lock:
+            proposal_id = uuid4().hex
+            proposal = Proposal(
+                id=proposal_id,
+                title=title,
+                description=description,
+                created_at=datetime.now(timezone.utc),
+            )
+            self._proposals[proposal_id] = proposal
+            return proposal
 
-    def cast_vote(self, data: Mapping[str, object]) -> Vote:
-        """Registra un voto válido para una propuesta existente."""
-        payload = cast(Mapping[str, Any], data)
-        try:
-            vote = Vote(**payload)
-        except ValidationError as exc:
-            raise ValueError(f"Voto inválido: {exc}") from exc
-        if vote.proposal_id not in self.proposals:
-            raise ValueError("La propuesta no existe.")
-        votos = self.votes.setdefault(vote.proposal_id, [])
-        if any(v.voter_id == vote.voter_id for v in votos):
-            raise ValueError("La persona ya votó esta propuesta.")
-        votos.append(vote)
-        return vote
+    def vote(self, proposal_id: str, value: VoteValue) -> Proposal:
+        with self._lock:
+            proposal = self._proposals.get(proposal_id)
+            if proposal is None:
+                raise ValueError("La propuesta no existe.")
+            data = proposal.model_dump()
+            if value == "for":
+                data["votes_for"] = proposal.votes_for + 1
+            else:
+                data["votes_against"] = proposal.votes_against + 1
+            updated = Proposal(**data)
+            self._proposals[proposal_id] = updated
+            return updated
 
-    def tally(self, proposal_id: str) -> dict[str, object]:
-        """Calcula resultados simples para una propuesta."""
-        if proposal_id not in self.proposals:
-            raise ValueError("La propuesta no existe.")
-        votos = self.votes.get(proposal_id, [])
-        total = len(votos)
-        favor = sum(1 for v in votos if v.value)
-        return {
-            "proposal": self.proposals[proposal_id].model_dump(),
-            "total_votes": total,
-            "approved": favor,
-            "rejected": total - favor,
-        }
+    def get_results(self) -> List[Proposal]:
+        with self._lock:
+            return list(self._proposals.values())
+
+    def get_proposal(self, proposal_id: str) -> Proposal:
+        with self._lock:
+            proposal = self._proposals.get(proposal_id)
+            if proposal is None:
+                raise ValueError("La propuesta no existe.")
+            return proposal
+
+    def reset(self) -> None:
+        with self._lock:
+            self._proposals.clear()
+
+
+_SYSTEM = VoteSystem()
+
+
+def create_proposal(title: str, description: str) -> Proposal:
+    return _SYSTEM.create_proposal(title, description)
+
+
+def vote(proposal_id: str, value: VoteValue) -> Proposal:
+    return _SYSTEM.vote(proposal_id, value)
+
+
+def get_results() -> List[Proposal]:
+    return _SYSTEM.get_results()
+
+
+def get_proposal(proposal_id: str) -> Proposal:
+    return _SYSTEM.get_proposal(proposal_id)
+
+
+def reset_system() -> None:
+    _SYSTEM.reset()
+
+
+__all__ = [
+    "Proposal",
+    "VoteSystem",
+    "create_proposal",
+    "get_proposal",
+    "get_results",
+    "reset_system",
+    "vote",
+]
+

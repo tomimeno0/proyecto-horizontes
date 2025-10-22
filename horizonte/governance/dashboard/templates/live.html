@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Proyecto Horizonte — Métricas en vivo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-slate-900 text-slate-100 min-h-screen">
+    <main class="max-w-4xl mx-auto py-10 px-4 space-y-6">
+      <header>
+        <h1 class="text-3xl font-semibold">Monitoreo en vivo</h1>
+        <p class="text-slate-300">
+          Los valores se actualizan automáticamente desde el núcleo de Horizonte.
+        </p>
+      </header>
+      <section class="grid gap-4 md:grid-cols-2" id="metrics"></section>
+    </main>
+    <template id="metric-card">
+      <article class="p-4 bg-slate-800 rounded shadow">
+        <h2 class="text-lg font-medium text-slate-200"></h2>
+        <p class="text-2xl font-semibold mt-2"></p>
+      </article>
+    </template>
+    <script>
+      const titles = {
+        inferencias_totales: "Inferencias totales",
+        respuestas_ethics_denegadas: "Respuestas denegadas",
+        promedio_latencia_ms: "Latencia promedio (ms)",
+        consultas_por_minuto: "Consultas por minuto",
+      };
+
+      const metricsContainer = document.getElementById("metrics");
+      const cardTemplate = document.getElementById("metric-card");
+
+      function renderMetrics(data) {
+        metricsContainer.innerHTML = "";
+        Object.entries(data).forEach(([key, value]) => {
+          const clone = cardTemplate.content.cloneNode(true);
+          clone.querySelector("h2").textContent = titles[key] || key;
+          clone.querySelector("p").textContent = value;
+          metricsContainer.appendChild(clone);
+        });
+      }
+
+      const ws = new WebSocket("ws://localhost:8000/ws/metrics");
+      ws.onmessage = (event) => {
+        const payload = JSON.parse(event.data);
+        renderMetrics(payload);
+      };
+      ws.onerror = () => {
+        console.error("Conexión WebSocket interrumpida");
+      };
+    </script>
+  </body>
+</html>

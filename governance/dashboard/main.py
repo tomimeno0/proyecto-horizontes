@@ -7,7 +7,7 @@ from pathlib import Path
 from threading import RLock
 from typing import Dict, List, Tuple
 
-from fastapi import FastAPI, Request
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -73,13 +73,12 @@ BASE_DIR = Path(__file__).parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 
-router = FastAPI(title="Horizonte Dashboard", docs_url=None, redoc_url=None)
-router.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="dashboard-static")
+api_router = APIRouter(tags=["dashboard"])
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
-@router.get("/", response_class=HTMLResponse)
+@api_router.get("/", response_class=HTMLResponse)
 async def render_dashboard(request: Request) -> HTMLResponse:
     """Renderiza el dashboard con los indicadores consolidados."""
 
@@ -94,3 +93,8 @@ async def render_dashboard(request: Request) -> HTMLResponse:
         "top_queries": snapshot["top_queries"],
     }
     return templates.TemplateResponse("index.html", context)
+
+
+router = FastAPI(title="Horizonte Dashboard", docs_url=None, redoc_url=None)
+router.include_router(api_router)
+router.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="dashboard-static")
