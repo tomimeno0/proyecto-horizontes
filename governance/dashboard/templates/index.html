@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8">
+  <header class="text-center">
+    <h1 class="text-3xl md:text-4xl font-semibold">💫 Proyecto Horizonte — Dashboard Público</h1>
+    <p class="mt-2 text-slate-300">Transparencia en tiempo real del ecosistema de inferencias.</p>
+  </header>
+
+  <section class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div class="panel">
+      <h2 class="panel-title">Inferencias totales</h2>
+      <p class="panel-value">{{ total }}</p>
+    </div>
+    <div class="panel">
+      <h2 class="panel-title">Nodos activos</h2>
+      <p class="panel-value">{{ nodos }}</p>
+    </div>
+    <div class="panel">
+      <h2 class="panel-title">Último hash validado</h2>
+      <p class="panel-value text-xs break-all md:text-sm">{{ last_hash }}</p>
+    </div>
+    <div class="panel">
+      <h2 class="panel-title">Índice de ética</h2>
+      <p class="panel-value">{{ ethic_score }}%</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2 class="panel-title">Top 5 consultas</h2>
+    <ul class="mt-3 space-y-2 text-left">
+      {% for query, count in top_queries %}
+      <li class="flex justify-between gap-4">
+        <span class="truncate" title="{{ query }}">{{ query }}</span>
+        <span class="font-semibold">{{ count }}</span>
+      </li>
+      {% else %}
+      <li class="text-slate-400">No hay consultas registradas.</li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

@@ -17,17 +17,21 @@ from slowapi.util import get_remote_address
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
 
+from governance.dashboard.main import router as dashboard_router
+from horizonte.api.routes import audit, health, infer
 from horizonte.common.config import Settings, get_settings
 from horizonte.common.db import init_db
 from horizonte.common.logging import RequestLoggingMiddleware, configure_logging
-from horizonte.api.routes import audit, health, infer
 from horizonte.governance import transparency_api
+from net.node_registry import router as nodes_router
 
 
 class PayloadLimitMiddleware(BaseHTTPMiddleware):
     """Middleware que controla el tamaño máximo de los cuerpos de las solicitudes."""
 
-    def __init__(self, app: Any, max_bytes: int) -> None:  # pragma: no cover - probado indirectamente
+    def __init__(
+        self, app: Any, max_bytes: int
+    ) -> None:  # pragma: no cover - probado indirectamente
         super().__init__(app)
         self.max_bytes = max_bytes
 
@@ -55,7 +59,13 @@ def create_app() -> FastAPI:
     app.state.logger = logger
     app.state.limiter = limiter
 
-    app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_methods=["*"], allow_headers=["*"], allow_credentials=False)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        allow_credentials=False,
+    )
     app.add_middleware(PayloadLimitMiddleware, max_bytes=settings.max_payload_bytes)
     app.add_middleware(RequestLoggingMiddleware, logger=logger)
     app.add_middleware(SlowAPIMiddleware)
@@ -63,9 +73,11 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(infer.router)
     app.include_router(audit.router)
+    app.include_router(nodes_router, prefix="/nodes")
 
     transparencia_router = transparency_api.get_router()
     app.include_router(transparencia_router)
+    app.mount("/dashboard", dashboard_router)
 
     registrar_manejadores(app, settings, logger)
     return app
@@ -75,8 +87,13 @@ def registrar_manejadores(app: FastAPI, settings: Settings, logger: logging.Logg
     """Registra manejadores de errores consistentes."""
 
     @app.exception_handler(RequestValidationError)
-    async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
-        return JSONResponse(status_code=400, content={"detail": "Solicitud inválida.", "errors": exc.errors()})
+    async def validation_exception_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "Solicitud inválida.", "errors": exc.errors()},
+        )
 
     @app.exception_handler(ValueError)
     async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
@@ -84,13 +101,18 @@ def registrar_manejadores(app: FastAPI, settings: Settings, logger: logging.Logg
 
     @app.exception_handler(RateLimitExceeded)
     async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
-        return JSONResponse(status_code=429, content={"detail": "Se excedió el límite de solicitudes."})
+        return JSONResponse(
+            status_code=429, content={"detail": "Se excedió el límite de solicitudes."}
+        )
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         request_id = str(uuid4())
         logger.error("error_no_controlado", exc_info=exc, extra={"request_id": request_id})
-        return JSONResponse(status_code=500, content={"detail": "Error interno del servidor.", "request_id": request_id})
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Error interno del servidor.", "request_id": request_id},
+        )
 
 
 app = create_app()

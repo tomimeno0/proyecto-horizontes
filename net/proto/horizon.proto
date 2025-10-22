@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package horizonte.net;
+
+// Definición preliminar del servicio de sincronización gRPC para Horizonte.
+service LedgerSync {
+  rpc BroadcastHash (HashRequest) returns (HashAck);
+}
+
+message HashRequest {
+  string node_id = 1;
+  string hash = 2;
+}
+
+message HashAck {
+  bool accepted = 1;
+  string message = 2;
+}
