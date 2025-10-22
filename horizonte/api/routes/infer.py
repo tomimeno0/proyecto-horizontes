@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Iterator
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from governance.dashboard.main import metrics_manager
 from horizonte.common.db import get_session
-from horizonte.core import ethics_filter, inference_engine, trace_logger
+from horizonte.common.security import sanitize_input
+from horizonte.core import ethics_filter, inference_engine, telemetry, trace_logger
 from net import consensus_manager
 
 router = APIRouter(tags=["inferencia"])
@@ -23,6 +25,13 @@ class InferRequest(BaseModel):
     query: str = Field(
         ..., description="Consulta en lenguaje natural", min_length=1, max_length=8000
     )
+
+    @field_validator("query")
+    @classmethod
+    def limpiar_query(cls, value: str) -> str:
+        """Sanitiza la consulta para evitar caracteres no válidos."""
+
+        return sanitize_input(value)
 
 
 class InferResponse(BaseModel):
@@ -47,6 +56,7 @@ async def realizar_inferencia(
     session: Session = Depends(_get_db_session),  # noqa: B008
 ) -> InferResponse:
     """Procesa la solicitud de inferencia y almacena la traza en el ledger."""
+    inicio = time.perf_counter()
     ts = datetime.now(timezone.utc)
     respuesta = inference_engine.infer(payload.query)
     evaluacion = ethics_filter.check(respuesta)
@@ -54,6 +64,8 @@ async def realizar_inferencia(
     registro = trace_logger.persist_ledger(session, payload.query, respuesta, hash_value, ts)
 
     metrics_manager.record_inference(payload.query, evaluacion)
+    latencia_ms = (time.perf_counter() - inicio) * 1000
+    telemetry.record_inference(latencia_ms, ethics_denied=not evaluacion.get("allowed", True))
     settings = getattr(request.app.state, "settings", None)
     node_identifier = getattr(settings, "node_id", "nodo-desconocido")
     consensus = consensus_manager.broadcast_result(node_identifier, hash_value)

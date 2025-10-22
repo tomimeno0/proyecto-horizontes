@@ -29,7 +29,8 @@ def _verify_node(node: Node, payload: Dict[str, str]) -> tuple[str, bool]:
     """Realiza la verificación individual de un nodo."""
 
     try:
-        is_valid = _simulate_remote_verification(node.address, payload)
+        address = str(node.address).rstrip("/")
+        is_valid = _simulate_remote_verification(address, payload)
         return node.node_id, is_valid
     except httpx.HTTPError as exc:
         logger.warning(
