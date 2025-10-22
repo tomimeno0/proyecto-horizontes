@@ -6,9 +6,9 @@ import asyncio
 from random import random
 from typing import Dict
 
+import uvicorn
 from fastapi import FastAPI
 from pydantic import BaseModel
-import uvicorn
 
 
 class VerifyRequest(BaseModel):

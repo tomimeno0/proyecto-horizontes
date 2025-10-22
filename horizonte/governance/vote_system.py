@@ -105,4 +105,3 @@ __all__ = [
     "reset_system",
     "vote",
 ]
-

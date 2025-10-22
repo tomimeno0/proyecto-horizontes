@@ -21,4 +21,3 @@ def test_live_dashboard_websocket() -> None:
         response = client.get("/dashboard/live")
         assert response.status_code == 200
         assert "Monitoreo en vivo" in response.text
-

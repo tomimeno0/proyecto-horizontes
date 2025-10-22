@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import unicodedata
 
-
 MAX_QUERY_LENGTH = 8000
 
 

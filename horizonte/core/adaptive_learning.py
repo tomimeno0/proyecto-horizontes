@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import json
 from collections import Counter, deque
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
-from typing import Deque, Dict, List, Sequence
+from typing import Deque, Dict, List
 
 _CACHE_FILENAME = "adaptive_cache.json"
 _DEFAULT_CACHE_PATH = Path(__file__).resolve().parent / _CACHE_FILENAME
@@ -33,7 +34,7 @@ class InferenceRecord:
         flags: Sequence[str],
         response_time_ms: float,
         allowed: bool,
-    ) -> "InferenceRecord":
+    ) -> InferenceRecord:
         return cls(
             timestamp=datetime.now(timezone.utc).isoformat(),
             query=query,
@@ -51,9 +52,7 @@ class AdaptiveMetrics:
     precision: float = 1.0
     consistency: float = 1.0
     bias_index: float = 0.0
-    last_update: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    last_update: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, float | str]:
         return {
@@ -162,6 +161,20 @@ class AdaptiveTrainer:
             self._buffer.append(record)
             self._recompute_metrics()
             self._persist()
+        try:
+            from horizonte.core.metacognition import record_cognitive_event
+
+            record_cognitive_event(
+                "adaptive_learning",
+                "log_inference",
+                {
+                    "flags": list(flags),
+                    "allowed": bool(allowed),
+                    "response_time_ms": float(response_time_ms),
+                },
+            )
+        except Exception:  # pragma: no cover - la metacognición no debe fallar
+            pass
 
     def _recompute_metrics(self) -> None:
         total = len(self._buffer)
@@ -172,9 +185,7 @@ class AdaptiveTrainer:
         allowed_count = sum(1 for record in self._buffer if record.allowed)
         precision = allowed_count / total
 
-        bias_events = sum(
-            1 for record in self._buffer if "posible_sesgo" in record.flags
-        )
+        bias_events = sum(1 for record in self._buffer if "posible_sesgo" in record.flags)
         bias_index = bias_events / total
 
         consistency = self._calculate_consistency()
@@ -204,9 +215,7 @@ class AdaptiveTrainer:
     # ------------------------------------------------------------------
     # Ajuste adaptativo
     # ------------------------------------------------------------------
-    def update_model_feedback(
-        self, flags: Sequence[str] | None = None
-    ) -> Dict[str, float]:
+    def update_model_feedback(self, flags: Sequence[str] | None = None) -> Dict[str, float]:
         """Ajusta la sensibilidad del filtro según los patrones de flags."""
 
         with self._lock:
@@ -231,6 +240,19 @@ class AdaptiveTrainer:
                         adjustments[flag] = nuevo_valor
             if adjustments:
                 self._persist()
+            try:
+                from horizonte.core.metacognition import record_cognitive_event
+
+                record_cognitive_event(
+                    "adaptive_learning",
+                    "update_model_feedback",
+                    {
+                        "flags": list(flags or []),
+                        "ajustes": dict(adjustments),
+                    },
+                )
+            except Exception:  # pragma: no cover
+                pass
             return dict(self._sensitivity)
 
     def export_metrics(self) -> Dict[str, float | str | Dict[str, float]]:

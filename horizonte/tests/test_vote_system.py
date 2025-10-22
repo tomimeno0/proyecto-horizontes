@@ -27,4 +27,3 @@ def test_create_and_vote_proposal() -> None:
     summary = vote_system.get_proposal(proposal.id)
     assert summary.votes_for == 1
     assert summary.votes_against == 1
-

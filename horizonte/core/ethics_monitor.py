@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, List
 
 from .adaptive_learning import AdaptiveTrainer, get_adaptive_trainer
 
@@ -46,9 +47,7 @@ class EthicsMonitor:
 
     def _write_snapshots(self, snapshots: Iterable[Dict[str, Any]]) -> None:
         data = list(snapshots)[-self._max_snapshots :]
-        self.audit_path.write_text(
-            json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
+        self.audit_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
     # ------------------------------------------------------------------
     # Monitorización
@@ -70,11 +69,19 @@ class EthicsMonitor:
             registros = self._read_snapshots()
             registros.append(snapshot)
             self._write_snapshots(registros)
+        try:
+            from horizonte.core.metacognition import record_cognitive_event
+
+            record_cognitive_event(
+                "ethics_monitor",
+                "poll",
+                {"alert": alert, "precision": precision},
+            )
+        except Exception:  # pragma: no cover - no se debe interrumpir el monitoreo
+            pass
         return snapshot
 
-    async def run(
-        self, interval: float = 60.0, stop_event: asyncio.Event | None = None
-    ) -> None:
+    async def run(self, interval: float = 60.0, stop_event: asyncio.Event | None = None) -> None:
         """Ciclo continuo de monitorización."""
 
         while True:

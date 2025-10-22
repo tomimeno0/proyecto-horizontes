@@ -16,5 +16,7 @@ def generar_tutorial(tema: str, pasos: List[str]) -> Dict[str, object]:
 
 
 if __name__ == "__main__":  # pragma: no cover - ejemplo manual
-    ejemplo = generar_tutorial("Uso responsable de IA", ["Introducción", "Principios éticos", "Evaluación"])
+    ejemplo = generar_tutorial(
+        "Uso responsable de IA", ["Introducción", "Principios éticos", "Evaluación"]
+    )
     print(ejemplo)

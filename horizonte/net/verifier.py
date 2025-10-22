@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-from fastapi import FastAPI
 import uvicorn
+from fastapi import FastAPI
 
 
 def quorum_validate(hashes: List[str]) -> Dict[str, object]:

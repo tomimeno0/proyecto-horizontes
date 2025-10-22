@@ -20,9 +20,7 @@ def persist_ledger(
     session: Session, query: str, response: str, hash_value: str, ts: datetime
 ) -> Ledger:
     """Inserta una nueva entrada en el ledger."""
-    registro = Ledger(
-        query=query, response=response, hash=hash_value, timestamp=ts.isoformat()
-    )
+    registro = Ledger(query=query, response=response, hash=hash_value, timestamp=ts.isoformat())
     session.add(registro)
     session.flush()
     return registro

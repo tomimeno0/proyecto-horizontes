@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from horizonte.common.db import get_session
 from horizonte.core.trace_logger import make_hash, persist_ledger
 
-
 REGISTROS = [
     ("¿Qué es Horizonte?", "Horizonte es una IA auditable enfocada en transparencia."),
     ("Impacto social", "El proyecto promueve gobernanza participativa en IA."),

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Sequence
+from collections.abc import Sequence
+from typing import Dict, List
 
 from .adaptive_learning import AdaptiveTrainer, get_adaptive_trainer, set_adaptive_trainer
 
@@ -24,11 +25,7 @@ def check(response: str) -> Dict[str, object]:
         flags.append("posible_sesgo")
 
     permitido = not flags
-    notas = (
-        "Respuesta considerada segura."
-        if permitido
-        else "Se detectaron indicadores a revisar."
-    )
+    notas = "Respuesta considerada segura." if permitido else "Se detectaron indicadores a revisar."
     if flags:
         ADAPTIVE_TRAINER.update_model_feedback(flags)
     return {

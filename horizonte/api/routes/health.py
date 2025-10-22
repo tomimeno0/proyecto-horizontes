@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request
 
-
 router = APIRouter(tags=["status"])
 
 

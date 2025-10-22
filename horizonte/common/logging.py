@@ -86,9 +86,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.logger = logger
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         inicio = time.perf_counter()
         response = await call_next(request)
         duracion_ms = (time.perf_counter() - inicio) * 1000

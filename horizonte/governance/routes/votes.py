@@ -5,11 +5,9 @@ from __future__ import annotations
 from typing import List, Literal
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field
-
 from horizonte.governance import vote_system
 from horizonte.governance.vote_system import Proposal
-
+from pydantic import BaseModel, Field
 
 router = APIRouter(tags=["governance"])
 
@@ -67,4 +65,3 @@ def proposal_results(proposal_id: str) -> ProposalResult:
 
 
 __all__ = ["router"]
-

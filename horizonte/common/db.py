@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime, timezone
-from typing import Iterator
 
 from sqlalchemy import String, Text, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from .config import get_settings
-
 
 settings = get_settings()
 engine = create_engine(settings.db_url, echo=False, future=True)
@@ -30,7 +29,9 @@ class Ledger(Base):
     query: Mapped[str] = mapped_column(Text, nullable=False)
     response: Mapped[str] = mapped_column(Text, nullable=False)
     hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
-    timestamp: Mapped[str] = mapped_column(String(32), nullable=False, default=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=lambda: datetime.now(timezone.utc).isoformat()
+    )
 
 
 def init_db() -> None:

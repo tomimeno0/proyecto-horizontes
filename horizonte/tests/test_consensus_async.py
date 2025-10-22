@@ -29,4 +29,3 @@ async def test_broadcast_result_async(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result["approved"] is True
     assert set(result["validators"]) == {"node-1", "node-2", "node-3"}
     assert result["failed"] == []
-

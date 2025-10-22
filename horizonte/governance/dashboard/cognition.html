@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Horizonte — Autoevaluación Cognitiva</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-slate-950 text-slate-100 min-h-screen">
+    <main class="max-w-5xl mx-auto py-10 px-4 space-y-8">
+      <header>
+        <h1 class="text-3xl font-semibold">Autoevaluación de AUREUS</h1>
+        <p class="text-slate-300">
+          Monitor de consistencia cognitiva y sincronización distribuida.
+        </p>
+      </header>
+      <section class="grid gap-6 md:grid-cols-2">
+        <article class="p-6 bg-slate-900 rounded-xl shadow-lg space-y-4">
+          <h2 class="text-xl font-medium text-amber-300">Espejo Cognitivo</h2>
+          <div class="space-y-2">
+            <p>
+              <span class="text-slate-400">Divergence Index promedio:</span>
+              <span id="divergence" class="font-semibold text-amber-200">0.00</span>
+            </p>
+            <p>
+              <span class="text-slate-400">Última divergencia:</span>
+              <span id="last-divergence" class="font-semibold">0.00</span>
+            </p>
+            <p>
+              <span class="text-slate-400">Consistencia global:</span>
+              <span id="consistency" class="font-semibold text-emerald-300">1.00</span>
+            </p>
+            <p>
+              <span class="text-slate-400">Ciclos de autoevaluación:</span>
+              <span id="cycles" class="font-semibold">0</span>
+            </p>
+            <p>
+              <span class="text-slate-400">Último ciclo:</span>
+              <span id="last-check" class="font-semibold">—</span>
+            </p>
+          </div>
+        </article>
+        <article class="p-6 bg-slate-900 rounded-xl shadow-lg space-y-4">
+          <h2 class="text-xl font-medium text-sky-300">Auditoría Distribuida</h2>
+          <div class="space-y-2">
+            <p>
+              <span class="text-slate-400">Nodo actual:</span>
+              <span id="node-id" class="font-semibold">—</span>
+            </p>
+            <p>
+              <span class="text-slate-400">Score local:</span>
+              <span id="local-score" class="font-semibold">—</span>
+            </p>
+            <p>
+              <span class="text-slate-400">Consistencia colectiva:</span>
+              <span id="collective-score" class="font-semibold">—</span>
+            </p>
+            <p>
+              <span class="text-slate-400">Acción tomada:</span>
+              <span id="action" class="font-semibold">—</span>
+            </p>
+            <p>
+              <span class="text-slate-400">Última actualización:</span>
+              <span id="network-timestamp" class="font-semibold">—</span>
+            </p>
+          </div>
+        </article>
+      </section>
+      <section class="p-6 bg-slate-900 rounded-xl shadow-lg">
+        <h2 class="text-xl font-medium text-slate-200">Último ciclo de auditoría</h2>
+        <pre id="raw-status" class="mt-4 text-sm bg-slate-950 p-4 rounded overflow-x-auto"></pre>
+      </section>
+    </main>
+    <script>
+      function buildWsUrl(path) {
+        const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+        return `${protocol}://${window.location.host}${path}`;
+      }
+
+      function updateMirror(data) {
+        const mirror = data.mirror || {};
+        const divergenceValue =
+          typeof mirror.divergence_index === "number"
+            ? mirror.divergence_index.toFixed(3)
+            : mirror.divergence_index ?? "0.000";
+        document.getElementById("divergence").textContent = divergenceValue;
+        document.getElementById("last-divergence").textContent = mirror.last_divergence ?? "0.000";
+        document.getElementById("consistency").textContent = mirror.consistency_score ?? "1.000";
+        document.getElementById("cycles").textContent = mirror.auto_eval_cycles ?? 0;
+        document.getElementById("last-check").textContent = mirror.last_self_check ?? "—";
+      }
+
+      function updateNetwork(data) {
+        const network = data.network;
+        document.getElementById("node-id").textContent = network?.node_id ?? "—";
+        document.getElementById("local-score").textContent = network?.local_score ?? "—";
+        document.getElementById("collective-score").textContent = network?.collective_score ?? "—";
+        document.getElementById("action").textContent = network?.action_taken ?? "—";
+        document.getElementById("network-timestamp").textContent = network?.timestamp ?? "—";
+      }
+
+      function renderStatus(data) {
+        updateMirror(data);
+        updateNetwork(data);
+        document.getElementById("raw-status").textContent = JSON.stringify(data, null, 2);
+      }
+
+      const ws = new WebSocket(buildWsUrl("/ws/cognition"));
+      ws.addEventListener("message", (event) => {
+        const payload = JSON.parse(event.data);
+        renderStatus(payload);
+      });
+      ws.addEventListener("error", () => {
+        console.error("Fallo en el WebSocket de cognición");
+      });
+    </script>
+  </body>
+</html>

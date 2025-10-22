@@ -45,4 +45,3 @@ def test_register_rejects_duplicate_address() -> None:
         payload_dup = {"node_id": "node-b", "address": "http://duplicate.test"}
         response = client.post("/nodes/register", json=payload_dup)
         assert response.status_code == 400
-

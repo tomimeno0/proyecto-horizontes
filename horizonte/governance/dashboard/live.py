@@ -18,6 +18,7 @@ logger = logging.getLogger("horizonte.governance.live")
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+COGNITION_TEMPLATE = Path(__file__).parent / "cognition.html"
 
 router = APIRouter(tags=["dashboard-live"])
 
@@ -29,6 +30,13 @@ async def live_page(request: Request) -> HTMLResponse:
     """Renderiza el dashboard de métricas en vivo."""
 
     return templates.TemplateResponse("live.html", {"request": request})
+
+
+@router.get("/cognition", response_class=HTMLResponse)
+async def cognition_page() -> HTMLResponse:
+    """Entrega el dashboard de autoevaluación cognitiva."""
+
+    return HTMLResponse(COGNITION_TEMPLATE.read_text(encoding="utf-8"))
 
 
 @router.websocket("/ws/metrics")
@@ -51,4 +59,3 @@ async def metrics_stream(websocket: WebSocket) -> None:
 
 
 __all__ = ["router", "metrics_stream"]
-

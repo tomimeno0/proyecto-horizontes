@@ -8,7 +8,6 @@ from typing import Dict, List, Literal
 from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import AnyHttpUrl, BaseModel, Field, field_validator
 
-
 NodeStatus = Literal["active", "unknown"]
 
 
@@ -46,10 +45,7 @@ class NodeRegistry:
         candidate = Node(**payload.model_dump())
         with self._lock:
             for node_id, node in self._nodes.items():
-                if (
-                    node.address == candidate.address
-                    and node_id != candidate.node_id
-                ):
+                if node.address == candidate.address and node_id != candidate.node_id:
                     raise ValueError("La dirección ya está asociada a otro nodo.")
             self._nodes[candidate.node_id] = candidate
         return candidate
@@ -140,4 +136,3 @@ __all__ = [
     "get_registry",
     "router",
 ]
-

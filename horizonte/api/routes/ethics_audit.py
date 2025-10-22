@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, status
 
+from horizonte.core import ethics_filter
 from horizonte.core.adaptive_learning import get_adaptive_trainer
 from horizonte.core.ethics_monitor import get_ethics_monitor
-from horizonte.core import ethics_filter
 
 router = APIRouter(prefix="/ethics", tags=["ethics"])
 
