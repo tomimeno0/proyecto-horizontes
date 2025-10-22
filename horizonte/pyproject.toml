@@ -20,6 +20,10 @@ no_implicit_optional = true
 check_untyped_defs = true
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "horizonte.tests.*"
+ignore_errors = true
+
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"

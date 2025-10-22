@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Iterator, List
+from collections.abc import Iterator
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 
 from horizonte.common.db import Ledger, get_session
 from horizonte.core import trace_logger
-
 
 router = APIRouter(tags=["auditoria"])
 
@@ -29,7 +28,7 @@ class AuditRecord(BaseModel):
 class AuditResponse(BaseModel):
     """Respuesta paginada de auditoría."""
 
-    items: List[AuditRecord]
+    items: list[AuditRecord]
     limit: int
     offset: int
 
@@ -43,10 +42,13 @@ def _get_db_session() -> Iterator[Session]:
 async def listar_auditoria(
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    session: Session = Depends(_get_db_session),
+    session: Session = Depends(_get_db_session),  # noqa: B008
 ) -> AuditResponse:
     """Recupera las entradas del ledger con paginación sencilla."""
     consulta = select(Ledger).order_by(Ledger.id.desc()).limit(limit).offset(offset)
     registros = session.execute(consulta).scalars().all()
-    items = [AuditRecord(**trace_logger.serialize_record(registro)) for registro in registros]
+    items = [
+        AuditRecord.model_validate(trace_logger.serialize_record(registro))
+        for registro in registros
+    ]
     return AuditResponse(items=items, limit=limit, offset=offset)

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from pydantic import AnyHttpUrl
 
 from governance.dashboard.main import metrics_manager, router
 from net.node_registry import NodePayload, get_registry
@@ -25,7 +28,7 @@ def test_dashboard_renderiza_metricas() -> None:
     get_registry().register(
         NodePayload(
             node_id="validator-1",
-            address="http://validator1.example.com",
+            address=cast(AnyHttpUrl, "http://validator1.example.com"),
             status="activo",
         )
     )

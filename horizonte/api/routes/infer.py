@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Iterator
 from datetime import datetime, timezone
 
@@ -11,7 +12,9 @@ from sqlalchemy.orm import Session
 
 from governance.dashboard.main import metrics_manager
 from horizonte.common.db import get_session
+from horizonte.common.security import sanitize_input
 from horizonte.core import ethics_filter, inference_engine, trace_logger
+from horizonte.core.telemetry import record_inference as record_internal_inference
 from net import consensus_manager
 
 router = APIRouter(tags=["inferencia"])
@@ -48,12 +51,20 @@ async def realizar_inferencia(
 ) -> InferResponse:
     """Procesa la solicitud de inferencia y almacena la traza en el ledger."""
     ts = datetime.now(timezone.utc)
-    respuesta = inference_engine.infer(payload.query)
+    inicio = time.perf_counter()
+    query_sanitizado = sanitize_input(payload.query)
+    respuesta = inference_engine.infer(query_sanitizado)
     evaluacion = ethics_filter.check(respuesta)
-    hash_value = trace_logger.make_hash(payload.query, respuesta, ts)
-    registro = trace_logger.persist_ledger(session, payload.query, respuesta, hash_value, ts)
+    hash_value = trace_logger.make_hash(query_sanitizado, respuesta, ts)
+    registro = trace_logger.persist_ledger(
+        session, query_sanitizado, respuesta, hash_value, ts
+    )
 
-    metrics_manager.record_inference(payload.query, evaluacion)
+    latency_ms = (time.perf_counter() - inicio) * 1000
+    ethics_denegada = not bool(evaluacion.get("allowed", False))
+    record_internal_inference(latency_ms, ethics_denegada)
+
+    metrics_manager.record_inference(query_sanitizado, evaluacion)
     settings = getattr(request.app.state, "settings", None)
     node_identifier = getattr(settings, "node_id", "nodo-desconocido")
     consensus = consensus_manager.broadcast_result(node_identifier, hash_value)

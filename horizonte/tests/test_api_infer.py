@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
@@ -11,7 +13,7 @@ from horizonte.common.db import Base, Ledger, engine, get_session
 
 
 @pytest.fixture(autouse=True)
-def limpiar_ledger() -> None:
+def limpiar_ledger() -> Generator[None, None, None]:
     """Reinicia la base de datos antes de cada prueba."""
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
@@ -19,7 +21,7 @@ def limpiar_ledger() -> None:
     Base.metadata.drop_all(bind=engine)
 
 
-@pytest.mark.anyio
+@pytest.mark.anyio("asyncio")
 async def test_inferencia_exitosa() -> None:
     """La ruta debe responder con datos completos."""
     transport = ASGITransport(app=app)
@@ -33,7 +35,7 @@ async def test_inferencia_exitosa() -> None:
         assert total == 1
 
 
-@pytest.mark.anyio
+@pytest.mark.anyio("asyncio")
 async def test_inferencia_query_vacia() -> None:
     """Una consulta vacía debe generar error 400."""
     transport = ASGITransport(app=app)

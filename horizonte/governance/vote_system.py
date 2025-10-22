@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Any, cast
 
 from pydantic import BaseModel, Field, ValidationError
 
@@ -28,23 +29,25 @@ class Vote(BaseModel):
 class VoteRegistry:
     """Registro simple de propuestas y votos en memoria."""
 
-    proposals: Dict[str, Proposal] = field(default_factory=dict)
-    votes: Dict[str, List[Vote]] = field(default_factory=dict)
+    proposals: dict[str, Proposal] = field(default_factory=dict)
+    votes: dict[str, list[Vote]] = field(default_factory=dict)
 
-    def register_proposal(self, data: Dict[str, str]) -> Proposal:
+    def register_proposal(self, data: Mapping[str, object]) -> Proposal:
         """Registra una nueva propuesta validando los datos."""
+        payload = cast(Mapping[str, Any], data)
         try:
-            proposal = Proposal(**data)
+            proposal = Proposal(**payload)
         except ValidationError as exc:
             raise ValueError(f"Propuesta inválida: {exc}") from exc
         self.proposals[proposal.id] = proposal
         self.votes.setdefault(proposal.id, [])
         return proposal
 
-    def cast_vote(self, data: Dict[str, str | bool]) -> Vote:
+    def cast_vote(self, data: Mapping[str, object]) -> Vote:
         """Registra un voto válido para una propuesta existente."""
+        payload = cast(Mapping[str, Any], data)
         try:
-            vote = Vote(**data)
+            vote = Vote(**payload)
         except ValidationError as exc:
             raise ValueError(f"Voto inválido: {exc}") from exc
         if vote.proposal_id not in self.proposals:
@@ -55,7 +58,7 @@ class VoteRegistry:
         votos.append(vote)
         return vote
 
-    def tally(self, proposal_id: str) -> Dict[str, object]:
+    def tally(self, proposal_id: str) -> dict[str, object]:
         """Calcula resultados simples para una propuesta."""
         if proposal_id not in self.proposals:
             raise ValueError("La propuesta no existe.")

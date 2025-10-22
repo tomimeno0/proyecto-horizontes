@@ -6,7 +6,7 @@ import json
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -16,24 +16,53 @@ from .config import Settings
 
 
 class JsonFormatter(logging.Formatter):
-    """Formateador que emite logs en JSON."""
+    """Formateador que emite logs estructurados en formato JSON."""
+
+    _RESERVED_KEYS = {
+        "name",
+        "msg",
+        "args",
+        "levelname",
+        "levelno",
+        "pathname",
+        "filename",
+        "module",
+        "exc_info",
+        "exc_text",
+        "stack_info",
+        "lineno",
+        "funcName",
+        "created",
+        "msecs",
+        "relativeCreated",
+        "thread",
+        "threadName",
+        "processName",
+        "process",
+    }
 
     def __init__(self, node_id: str) -> None:
         super().__init__()
         self.node_id = node_id
 
     def format(self, record: logging.LogRecord) -> str:
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "ts": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
-            "message": record.getMessage(),
             "module": record.name,
+            "message": record.getMessage(),
             "node_id": self.node_id,
         }
-        extra_keys = {"method", "path", "status", "ms"}
-        for key in extra_keys:
-            if hasattr(record, key):
-                payload[key] = getattr(record, key)
+        for optional_key in ("request_id", "latency_ms"):
+            value = getattr(record, optional_key, None)
+            if value is not None:
+                payload[optional_key] = value
+        for key, value in record.__dict__.items():
+            if key in self._RESERVED_KEYS or key in payload:
+                continue
+            if key.startswith("_"):
+                continue
+            payload[key] = value
         if record.exc_info:
             payload["error"] = self.formatException(record.exc_info)
         return json.dumps(payload, ensure_ascii=False)
@@ -53,21 +82,24 @@ def configure_logging(settings: Settings) -> logging.Logger:
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Middleware que registra cada solicitud entrante."""
 
-    def __init__(self, app: Any, logger: logging.Logger) -> None:  # pragma: no cover - se valida en integración
+    def __init__(self, app: Any, logger: logging.Logger) -> None:  # pragma: no cover
         super().__init__(app)
         self.logger = logger
 
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         inicio = time.perf_counter()
         response = await call_next(request)
         duracion_ms = (time.perf_counter() - inicio) * 1000
-        self.logger.info(
-            "request",
-            extra={
-                "method": request.method,
-                "path": request.url.path,
-                "status": response.status_code,
-                "ms": round(duracion_ms, 2),
-            },
-        )
+        extra: dict[str, Any] = {
+            "method": request.method,
+            "path": request.url.path,
+            "status": response.status_code,
+            "latency_ms": round(duracion_ms, 2),
+        }
+        request_id = request.headers.get("x-request-id")
+        if request_id:
+            extra["request_id"] = request_id
+        self.logger.info("request", extra=extra)
         return response
