@@ -13,6 +13,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from horizonte.core import telemetry
+from horizonte.core.metacognition import get_cognitive_mirror
 from horizonte.net.consensus_manager import get_consensus_manager
 from horizonte.net.node_registry import get_registry
 
@@ -26,6 +27,8 @@ router = APIRouter(tags=["dashboard-live"])
 
 POLL_INTERVAL = 5
 NETWORK_POLL_INTERVAL = 10
+COGNITION_POLL_INTERVAL = 5
+COGNITION_TEMPLATE = Path(__file__).parent / "cognition.html"
 
 
 def _network_payload() -> dict[str, object]:
@@ -36,9 +39,7 @@ def _network_payload() -> dict[str, object]:
             {
                 "node_id": node.node_id,
                 "status": node.status,
-                "last_activity": node.last_activity.isoformat()
-                if node.last_activity
-                else None,
+                "last_activity": node.last_activity.isoformat() if node.last_activity else None,
                 "avg_latency_ms": node.avg_latency_ms,
                 "sync_score": node.sync_score,
             }
@@ -62,6 +63,13 @@ async def live_page(request: Request) -> HTMLResponse:
     """Renderiza el dashboard de métricas en vivo."""
 
     return templates.TemplateResponse("live.html", {"request": request})
+
+
+@router.get("/cognition", response_class=HTMLResponse)
+async def cognition_page() -> HTMLResponse:
+    """Entrega el dashboard cognitivo basado en metacognición."""
+
+    return HTMLResponse(COGNITION_TEMPLATE.read_text(encoding="utf-8"))
 
 
 @router.websocket("/ws/metrics")
@@ -102,5 +110,24 @@ async def network_stream(websocket: WebSocket) -> None:
             await websocket.close()
 
 
-__all__ = ["router", "metrics_stream", "network_stream"]
+@router.websocket("/ws/cognition")
+async def cognition_stream(websocket: WebSocket) -> None:
+    """Envía el estado cognitivo actualizado para el dashboard."""
 
+    await websocket.accept()
+    try:
+        mirror = get_cognitive_mirror()
+        await websocket.send_json(mirror.stream_payload())
+        while True:
+            await asyncio.sleep(COGNITION_POLL_INTERVAL)
+            await websocket.send_json(mirror.stream_payload())
+    except WebSocketDisconnect:
+        logger.info("cognition_client_disconnected")
+    except Exception:  # pragma: no cover - protección adicional
+        logger.exception("cognition_stream_error")
+    finally:
+        with contextlib.suppress(Exception):
+            await websocket.close()
+
+
+__all__ = ["router", "metrics_stream", "network_stream", "cognition_stream"]

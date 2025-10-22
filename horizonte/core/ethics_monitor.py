@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, Iterable, List
+from typing import Any
 
 from .adaptive_learning import AdaptiveTrainer, get_adaptive_trainer
 
@@ -35,7 +36,7 @@ class EthicsMonitor:
     # ------------------------------------------------------------------
     # Persistencia
     # ------------------------------------------------------------------
-    def _read_snapshots(self) -> List[Dict[str, Any]]:
+    def _read_snapshots(self) -> list[dict[str, Any]]:
         try:
             data = json.loads(self.audit_path.read_text(encoding="utf-8"))
             if isinstance(data, list):
@@ -44,16 +45,14 @@ class EthicsMonitor:
             pass
         return []
 
-    def _write_snapshots(self, snapshots: Iterable[Dict[str, Any]]) -> None:
+    def _write_snapshots(self, snapshots: Iterable[dict[str, Any]]) -> None:
         data = list(snapshots)[-self._max_snapshots :]
-        self.audit_path.write_text(
-            json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
+        self.audit_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
     # ------------------------------------------------------------------
     # Monitorización
     # ------------------------------------------------------------------
-    async def poll(self) -> Dict[str, Any]:
+    async def poll(self) -> dict[str, Any]:
         """Ejecuta una iteración de supervisión y guarda un snapshot."""
 
         metrics = self._trainer.export_metrics()
@@ -70,11 +69,12 @@ class EthicsMonitor:
             registros = self._read_snapshots()
             registros.append(snapshot)
             self._write_snapshots(registros)
+        from horizonte.core.metacognition import get_cognitive_mirror
+
+        get_cognitive_mirror().register_event("ethics_monitor", snapshot)
         return snapshot
 
-    async def run(
-        self, interval: float = 60.0, stop_event: asyncio.Event | None = None
-    ) -> None:
+    async def run(self, interval: float = 60.0, stop_event: asyncio.Event | None = None) -> None:
         """Ciclo continuo de monitorización."""
 
         while True:
@@ -86,7 +86,7 @@ class EthicsMonitor:
     # ------------------------------------------------------------------
     # Consulta externa
     # ------------------------------------------------------------------
-    def get_audit_logs(self, limit: int | None = None) -> List[Dict[str, Any]]:
+    def get_audit_logs(self, limit: int | None = None) -> list[dict[str, Any]]:
         """Devuelve los registros más recientes del archivo de auditoría."""
 
         with self._lock:

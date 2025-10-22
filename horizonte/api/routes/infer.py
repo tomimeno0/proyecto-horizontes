@@ -14,6 +14,7 @@ from governance.dashboard.main import metrics_manager
 from horizonte.common.db import get_session
 from horizonte.common.security import sanitize_input
 from horizonte.core import ethics_filter, inference_engine, trace_logger
+from horizonte.core.metacognition import get_cognitive_mirror
 from horizonte.core.telemetry import record_inference as record_internal_inference
 from net import consensus_manager
 
@@ -54,11 +55,14 @@ async def realizar_inferencia(
     ts = datetime.now(timezone.utc)
     inicio = time.perf_counter()
     query_sanitizado = sanitize_input(payload.query)
-    respuesta = inference_engine.infer(query_sanitizado)
-    evaluacion = ethics_filter.check(respuesta)
-    hash_value = trace_logger.make_hash(query_sanitizado, respuesta, ts)
+    respuesta_inicial = inference_engine.infer(query_sanitizado)
+    espejo = get_cognitive_mirror()
+    resultado_cognitivo = espejo.evaluate(query_sanitizado, respuesta_inicial)
+    respuesta_final = str(resultado_cognitivo["response"])
+    evaluacion = ethics_filter.check(respuesta_final)
+    hash_value = trace_logger.make_hash(query_sanitizado, respuesta_final, ts)
     registro = trace_logger.persist_ledger(
-        session, query_sanitizado, respuesta, hash_value, ts
+        session, query_sanitizado, respuesta_final, hash_value, ts
     )
 
     latency_ms = (time.perf_counter() - inicio) * 1000
@@ -75,9 +79,7 @@ async def realizar_inferencia(
     )
     settings = getattr(request.app.state, "settings", None)
     node_identifier = getattr(settings, "node_id", "nodo-desconocido")
-    consensus = await consensus_manager.broadcast_result_async(
-        node_identifier, hash_value
-    )
+    consensus = await consensus_manager.broadcast_result_async(node_identifier, hash_value)
     logger = getattr(request.app.state, "logger", None)
     if logger:
         logger.info("consenso_inferencia", extra=consensus)

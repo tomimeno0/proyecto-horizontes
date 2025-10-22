@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import json
 from collections import Counter, deque
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
-from typing import Deque, Dict, List, Sequence
 
 _CACHE_FILENAME = "adaptive_cache.json"
 _DEFAULT_CACHE_PATH = Path(__file__).resolve().parent / _CACHE_FILENAME
@@ -21,7 +21,7 @@ class InferenceRecord:
     timestamp: str
     query: str
     response_hash: str
-    flags: List[str]
+    flags: list[str]
     response_time_ms: float
     allowed: bool
 
@@ -33,7 +33,7 @@ class InferenceRecord:
         flags: Sequence[str],
         response_time_ms: float,
         allowed: bool,
-    ) -> "InferenceRecord":
+    ) -> InferenceRecord:
         return cls(
             timestamp=datetime.now(timezone.utc).isoformat(),
             query=query,
@@ -51,11 +51,9 @@ class AdaptiveMetrics:
     precision: float = 1.0
     consistency: float = 1.0
     bias_index: float = 0.0
-    last_update: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    last_update: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
-    def to_dict(self) -> Dict[str, float | str]:
+    def to_dict(self) -> dict[str, float | str]:
         return {
             "precision": self.precision,
             "consistency": self.consistency,
@@ -76,10 +74,10 @@ class AdaptiveTrainer:
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
         self.buffer_size = buffer_size
         self._lock = Lock()
-        self._buffer: Deque[InferenceRecord] = deque(maxlen=buffer_size)
-        self._flag_history: Deque[str] = deque(maxlen=50)
+        self._buffer: deque[InferenceRecord] = deque(maxlen=buffer_size)
+        self._flag_history: deque[str] = deque(maxlen=50)
         self._metrics = AdaptiveMetrics()
-        self._sensitivity: Dict[str, float] = {
+        self._sensitivity: dict[str, float] = {
             "contenido_peligroso": 1.0,
             "posible_sesgo": 1.0,
         }
@@ -162,6 +160,17 @@ class AdaptiveTrainer:
             self._buffer.append(record)
             self._recompute_metrics()
             self._persist()
+        from horizonte.core.metacognition import get_cognitive_mirror
+
+        mirror = get_cognitive_mirror()
+        mirror.register_event(
+            "adaptive_learning",
+            {
+                "response_hash": response_hash,
+                "allowed": bool(allowed),
+                "flags": list(flags),
+            },
+        )
 
     def _recompute_metrics(self) -> None:
         total = len(self._buffer)
@@ -172,9 +181,7 @@ class AdaptiveTrainer:
         allowed_count = sum(1 for record in self._buffer if record.allowed)
         precision = allowed_count / total
 
-        bias_events = sum(
-            1 for record in self._buffer if "posible_sesgo" in record.flags
-        )
+        bias_events = sum(1 for record in self._buffer if "posible_sesgo" in record.flags)
         bias_index = bias_events / total
 
         consistency = self._calculate_consistency()
@@ -188,7 +195,7 @@ class AdaptiveTrainer:
     def _calculate_consistency(self) -> float:
         if not self._buffer:
             return 1.0
-        history: Dict[str, set[tuple[bool, tuple[str, ...]]]] = {}
+        history: dict[str, set[tuple[bool, tuple[str, ...]]]] = {}
         inconsistencies = 0
         for record in self._buffer:
             key = record.response_hash
@@ -204,16 +211,14 @@ class AdaptiveTrainer:
     # ------------------------------------------------------------------
     # Ajuste adaptativo
     # ------------------------------------------------------------------
-    def update_model_feedback(
-        self, flags: Sequence[str] | None = None
-    ) -> Dict[str, float]:
+    def update_model_feedback(self, flags: Sequence[str] | None = None) -> dict[str, float]:
         """Ajusta la sensibilidad del filtro según los patrones de flags."""
 
         with self._lock:
             if flags:
                 self._flag_history.extend(flags)
             counts = Counter(self._flag_history)
-            adjustments: Dict[str, float] = {}
+            adjustments: dict[str, float] = {}
             for flag, count in counts.items():
                 if count >= 3:
                     current = self._sensitivity.get(flag, 1.0)
@@ -233,11 +238,11 @@ class AdaptiveTrainer:
                 self._persist()
             return dict(self._sensitivity)
 
-    def export_metrics(self) -> Dict[str, float | str | Dict[str, float]]:
+    def export_metrics(self) -> dict[str, float | str | dict[str, float]]:
         """Devuelve un resumen serializable de las métricas actuales."""
 
         with self._lock:
-            payload: Dict[str, float | str | Dict[str, float]] = {
+            payload: dict[str, float | str | dict[str, float]] = {
                 **self._metrics.to_dict(),
                 "sensitivity": dict(self._sensitivity),
             }
@@ -260,7 +265,7 @@ class AdaptiveTrainer:
             self._persist()
 
     @property
-    def buffer(self) -> List[InferenceRecord]:
+    def buffer(self) -> list[InferenceRecord]:
         """Devuelve una copia inmutable del buffer actual."""
 
         with self._lock:
